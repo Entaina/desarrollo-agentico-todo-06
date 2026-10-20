@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Deja el repositorio listo para arrancar la aplicación y ejecutar los tests. Se puede repetir: solo
-# hace lo que falta.
+# Deja esta copia de trabajo lista para arrancar la aplicación y ejecutar los tests: el checkout
+# principal o un worktree de bin/tree, con los puertos de su .env. Se puede repetir: solo hace lo
+# que falta.
 #
 #   bin/setup
 #
@@ -14,6 +15,8 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# shellcheck disable=SC1091
+[[ -f .env ]] && { set -a; . ./.env; set +a; }
 
 step() { printf '\n== %s\n' "$*"; }
 fail() {
@@ -50,9 +53,9 @@ else
 fi
 npx playwright install chromium
 
-step "PostgreSQL en el puerto 5432"
+step "PostgreSQL en el puerto ${DB_PORT:-5432}"
 docker compose up -d --wait db ||
-  fail "PostgreSQL no arranca. Si otro proyecto ocupa el puerto 5432, páralo"
+  fail "PostgreSQL no arranca. Si otro proyecto ocupa el puerto ${DB_PORT:-5432}, páralo o trabaja en un worktree (bin/tree create <N>)"
 soda=$(command -v soda || echo "$gobin/soda")
 created=$("$soda" create -e test 2>&1) || [[ $created == *"already exists"* ]] || {
   echo "$created" >&2

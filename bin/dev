@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Arranca en primer plano la aplicación del repositorio, en http://localhost:3000. Antes, bin/setup.
+# Arranca en primer plano la aplicación de esta copia de trabajo, con sus puertos: el checkout
+# principal (3000) o un worktree de bin/tree (el APP_PORT de su .env). Antes, bin/setup.
 #
 #   bin/dev [--docker]
 #
@@ -11,8 +12,10 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-app_port=3000
-db_port=5432
+# shellcheck disable=SC1091
+[[ -f .env ]] && { set -a; . ./.env; set +a; }
+app_port=${APP_PORT:-3000}
+db_port=${DB_PORT:-5432}
 
 fail() {
   echo "bin/dev: $*" >&2
@@ -35,15 +38,15 @@ if [[ $mode == host && -z $buffalo ]]; then
   mode=docker
 fi
 
-# busy <puerto> <servicio>: el puerto escucha, pero no es del servicio de este proyecto.
+# busy <puerto> <servicio>: el puerto escucha, pero no es del servicio de esta copia de trabajo.
 busy() {
   lsof -nP -iTCP:"$1" -sTCP:LISTEN > /dev/null 2>&1 || return 1
   ! docker compose ps --status running --services 2> /dev/null | grep -qx "$2"
 }
 busy "$db_port" db &&
-  fail "el puerto $db_port de PostgreSQL lo ocupa otro proceso (lsof -nP -iTCP:$db_port -sTCP:LISTEN). Páralo antes."
+  fail "el puerto $db_port de PostgreSQL lo ocupa otro proceso (lsof -nP -iTCP:$db_port -sTCP:LISTEN). Páralo o trabaja en un worktree (bin/tree create <N>)."
 busy "$app_port" app &&
-  fail "el puerto $app_port de la aplicación lo ocupa otro proceso (lsof -nP -iTCP:$app_port -sTCP:LISTEN). Si es otro bin/dev de este proyecto, ya está en marcha."
+  fail "el puerto $app_port de la aplicación lo ocupa otro proceso (lsof -nP -iTCP:$app_port -sTCP:LISTEN). Si es otro bin/dev de esta copia de trabajo, ya está en marcha."
 
 docker compose up -d --wait db
 echo "bin/dev: modo $mode. La aplicación, en http://localhost:$app_port. Ctrl+C la para; PostgreSQL sigue en marcha."
